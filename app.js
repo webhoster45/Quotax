@@ -15,49 +15,67 @@ const smallletters=['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o',
 const largeletters=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
 const numbers=[0,1,2,3,4,5,6,7,8,9,0];
 
+const userschema=new Schema({
+  username:{type:String,required:true},
+  password:{type:String,required:true},
+  email:{type:String,required:true},
+  totalapis:{type:Number,required:true},
+  plan:{type:String,required:true}
+},{timestamps:true})
 
-// app.use(cors());
-// app.use(express.json());
-// app.use(express.urlencoded({extended:true}))
+const apiSchema=new Schema({
+  userid:{type:String,required:true},
+  api:{type:String,required:true},
+  limit:{type:String,required:true},
+  plan:{type:String,required:true}
+},{timestamps:true})
 
-// const redisopt={
-// url:process.env.REDIS_CLI,
-// socket:{
-//     reconnectStrategy:(retries)=> Math.min(retries*250,3000)
-// }
-// }
+const User=mongoose.model('User',userschema);
+const Api=mongoose.model('Api',apiSchema)
 
-// const redispublisher=createClient(redisopt);
-// const redissubscriber=createClient(redisopt);
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({extended:true}))
 
-// for (const client of [redispublisher, redissubscriber]){
-//     client.on('error',(err)=>console.log("REDIS CLIENT ERROR",err))
-// }
+const redisopt={
+url:process.env.REDIS_CLI,
+socket:{
+    reconnectStrategy:(retries)=> Math.min(retries*250,3000)
+}
+}
 
+const redispublisher=createClient(redisopt);
+const redissubscriber=createClient(redisopt);
 
-
-// function requireredis(req,res,next){
-//     if (redispublisher.isReady && redissubscriber.isReady) return next()
-//     return res.status(503).json({message:"Redis is not ready"})
-// }
-
-// async function startapp(){
-//   if(!MONGODB_URL|| !JWT_SECRET) return res.status(500).json({message:"MONGODB_URL or JWT_SECRET is missing"});
-//   await Promise.all([
-//     redissubscriber.connect(),
-//     redispublisher.connect(),
-//     mongoose.connect(MONGODB_URL).then(()=>console.log("MongoDB connected"))
-//   ])
-
-//   await redissubscriber.subscribe('notification',(message)=>{
-//     console.log("Recieved message", message)
-//   })
-
-//   app.listen(PORT,()=>console.log(`Server running at PORT: ${PORT}`))
-// }
+for (const client of [redispublisher, redissubscriber]){
+    client.on('error',(err)=>console.log("REDIS CLIENT ERROR",err))
+}
 
 
-// startapp();
+
+function requireredis(req,res,next){
+    if (redispublisher.isReady && redissubscriber.isReady) return next()
+    return res.status(503).json({message:"Redis is not ready"})
+}
+
+async function startapp(){
+  // console.log(JWT_SECRET)
+  if(!MONGODB_URL|| !JWT_SECRET) return console.log("MONGODB_URL or JWT_SECRET is missing");
+  await Promise.all([
+    redissubscriber.connect(),
+    redispublisher.connect(),
+    mongoose.connect(MONGODB_URL).then(()=>console.log("MongoDB connected"))
+  ])
+
+  await redissubscriber.subscribe('notification',(message)=>{
+    console.log("Recieved message", message)
+  })
+
+  app.listen(PORT,()=>console.log(`Server running at PORT: ${PORT}`))
+}
+
+
+startapp();
 
 
 function generateapikey(){
@@ -73,5 +91,29 @@ function generateapikey(){
   return apikey
 }
 
+async function authmiddleware(req,res,next){
+
+}
+
+
 console.log(generateapikey())
+
+
+
+app.post('registerorlogin',authmiddleware,requireredis,async (req,res)=>{
+  try {
+    
+  } catch (error) {
+    return res.status(500).json({message:"Internal Server Error",error})
+  }
+})
+
+
+app.post('/generatekey',authmiddleware,requireredis,async(req,res)=>{
+  try {
+    
+  } catch (error) {
+    return res.status(500).json({message:"Internal Server Error",error})
+  }
+})
 
