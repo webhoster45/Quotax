@@ -92,7 +92,19 @@ function generateapikey(){
 }
 
 async function authmiddleware(req,res,next){
+try {
+  
+} catch (error) {
+  return res.status(500).json({message:"Auth server Error",error})
+}
+}
 
+async function apimiddleware(req,res,next){
+try {
+  
+} catch (error) {
+  return res.status(500).json({message:"API server Error",error})
+}
 }
 
 
