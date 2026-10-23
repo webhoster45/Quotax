@@ -20,8 +20,8 @@ const userschema=new Schema({
   username:{type:String,required:true},
   password:{type:String,required:true},
   email:{type:String,required:true},
-  totalapis:{type:Number,required:true},
-  plan:{type:String,required:true}
+  totalapis:{type:Number,default:0},
+  plan:{type:String,default:"Basic"}
 },{timestamps:true})
 
 const apiSchema=new Schema({
@@ -142,7 +142,8 @@ app.post('registerorlogin',requireredis,async (req,res)=>{
       return res.status(200).json({message:`User: ${username} successfully created`},token)
     }
     else{
-        
+      await User.create({username,password,email})
+      return res.status(200).json({message:`User: ${username} successfully created successfully`})
     }
   } catch (error) {
     return res.status(500).json({message:"Internal Server Error",error})
