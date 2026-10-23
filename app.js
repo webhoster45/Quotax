@@ -10,6 +10,7 @@ const MONGODB_URL=process.env.MONGODB_URL;
 const JWT_SECRET=process.env.JWT_SECRET;
 const PORT=process.env.PORT || 5000;
 const Schema=mongoose.Schema;
+const bcrypt=require('bcrypt')
 
 const smallletters=['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
 const largeletters=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
@@ -126,12 +127,23 @@ console.log(generateapikey())
 
 
 
-app.post('registerorlogin',authmiddleware,requireredis,async (req,res)=>{
+app.post('registerorlogin',requireredis,async (req,res)=>{
   try {
     const {username,email,password}=req.body;
     if(!username||!email||!password) return res.status(400).json({message:"Missing Parameters"});
-    
-
+    const existinguser=await User.findOne({username});
+    if(existinguser){
+      const exemail=existinguser.email
+      const passwordmatch=bcrypt.compare(password,existinguser.password)
+      if(exemail!=email) return res.status(403).message({message:"Invalid credentials"})
+      if(!passwordmatch) return res.status(403).message({message:"Invalid credentials"})
+      
+      const token=jwt.sign({username},JWT_SECRET)
+      return res.status(200).json({message:`User: ${username} successfully created`},token)
+    }
+    else{
+        
+    }
   } catch (error) {
     return res.status(500).json({message:"Internal Server Error",error})
   }
