@@ -93,17 +93,31 @@ function generateapikey(){
 
 async function authmiddleware(req,res,next){
 try {
-  
+   const authheader=req.headers.authorization;
+   if(!authheader) return res.status(403).json({message:"Yoy don't have access"})
+   const token=authheader.split("")[1]
+  if(!token) return res.status(403).json({message:"Yoy don't have access"});
+  jwt.verify(token, JWT_SECRET,(err,decoded)=>{
+    if(err) return res.status(403).json({message:"Invalid token"})
+     req.user=decoded
+  })
+
+  next()
+
 } catch (error) {
-  return res.status(500).json({message:"Auth server Error",error})
+  return res.status(500).json({message:"Auth server Error ",error})
 }
 }
 
 async function apimiddleware(req,res,next){
 try {
-  
+  const apikey=req.headers['x-api-key']
+  if(!apikey) return res.status(401).json({message:"API key is missing"})
+  req.apikey=apikey;
+  next()
 } catch (error) {
-  return res.status(500).json({message:"API server Error",error})
+  console.log("Error: ",error)
+  return res.status(500).json({message:"API server Error"})
 }
 }
 
@@ -114,7 +128,10 @@ console.log(generateapikey())
 
 app.post('registerorlogin',authmiddleware,requireredis,async (req,res)=>{
   try {
+    const {username,email,password}=req.body;
+    if(!username||!email||!password) return res.status(400).json({message:"Missing Parameters"});
     
+
   } catch (error) {
     return res.status(500).json({message:"Internal Server Error",error})
   }
