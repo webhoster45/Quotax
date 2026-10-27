@@ -16,6 +16,8 @@ const smallletters=['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o',
 const largeletters=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
 const numbers=[0,1,2,3,4,5,6,7,8,9,0];
 
+const plans=new Set(['basic','premium','pro'])
+
 const userschema=new Schema({
   username:{type:String,required:true},
   password:{type:String,required:true},
@@ -154,7 +156,15 @@ app.post('registerorlogin',requireredis,async (req,res)=>{
 
 app.post('/upgradeplan',authmiddleware,requireredis,async (req,res)=>{
     try {
-    
+    const {plan,verified}=req.body;
+    if(!plan) return res.status(400).json({message:"INvalid credentials"})
+    if(!verified) return res.status(401).json({message:"You need to be verified"});
+    const username=req.user;
+    const existinguser=await User.findOne({username});
+    if(!existinguser) return res.status(400).json({message:"User doesn't exist"});
+
+    existinguser.plan=plan;
+    await User.save()
   } catch (error) {
     return res.status(500).json({message:"Internal Server Error",error})
   }
@@ -163,9 +173,24 @@ app.post('/upgradeplan',authmiddleware,requireredis,async (req,res)=>{
 
 app.post('/generatekey',authmiddleware,requireredis,async(req,res)=>{
   try {
-    
+    const apikey=generateapikey();
+    const existing=await Api.findOne({existing:apikey});
+    if(!existing) return res.status(400).json({message:"Duplicate: API key exists"});
+    const user=await User.findOne({username});
+    if(!user)  return res.status(400).json({message:"Duplicate: API key exists"});
+    const userid=user._id;
+    const limit=2;
+
+
+  //do redis here
+    await Api.create({userid,api:apikey,limit,plan:user.plan})
+
+
+
   } catch (error) {
     return res.status(500).json({message:"Internal Server Error",error})
   }
 })
+
+
 
