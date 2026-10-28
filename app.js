@@ -129,7 +129,7 @@ console.log(generateapikey())
 
 
 
-app.post('registerorlogin',requireredis,async (req,res)=>{
+app.post('/registerorlogin',requireredis,async (req,res)=>{
   try {
     const {username,email,password}=req.body;
     if(!username||!email||!password) return res.status(400).json({message:"Missing Parameters"});
@@ -141,12 +141,13 @@ app.post('registerorlogin',requireredis,async (req,res)=>{
       if(!passwordmatch) return res.status(403).json({message:"Invalid credentials"})
       
       const token=jwt.sign({username},JWT_SECRET)
-      return res.status(200).json({message:`User: ${username} successfully created`},token)
+      console.log(token)
+      return res.status(200).json({message:`User: ${username} successfully created`,token})
     }
     // else{
       const hashedpassword=await bcrypt.hash(password,10)
       await User.create({username,password:hashedpassword,email})
-      return res.status(201).json({message:`User: ${username} successfully created successfully`})
+      return res.status(201).json({message:`User: ${username} successfully created successfully`,token})
     // }
   } catch (error) {
     return res.status(200).json({message:"Internal Server Error",error})
