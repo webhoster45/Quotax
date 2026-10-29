@@ -195,3 +195,7 @@ app.post('/generatekey',authmiddleware,requireredis,async(req,res)=>{
 
 
 
+app.use((req,res)=>{
+  res.status(404).json({message:"Error Page doesn't exist"})
+})
+
