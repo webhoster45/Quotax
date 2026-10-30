@@ -67,7 +67,7 @@ async function startapp(){
   await Promise.all([
     redissubscriber.connect(),
     redispublisher.connect(),
-    mongoose.connect(MONGODB_URL).then(()=>console.log("MongoDB connected"))
+    mongoose.connect(MONGODB_URL).then(()=>console.log("MongoDB connected✅"))
   ])
 
   await redissubscriber.subscribe('notification',(message)=>{
@@ -96,16 +96,15 @@ function generateapikey(){
 
 async function authmiddleware(req,res,next){
 try {
-   const authheader=req.headers.authorization;
-   if(!authheader) return res.status(403).json({message:"Yoy don't have access"})
-   const token=authheader.split("")[1]
-  if(!token) return res.status(403).json({message:"Yoy don't have access"});
-  jwt.verify(token, JWT_SECRET,(err,decoded)=>{
-    if(err) return res.status(403).json({message:"Invalid token"})
-     req.user=decoded
-  })
+   const authheader=req.headers['authorization'];
+       console.log(authheader)
+   if(!authheader) return res.status(403).json({message:"You don't have access"})
 
-  next()
+   const token=authheader.split(" ")[1]
+  if(!token) return res.status(403).json({message:"You don't have access"});
+  const decoded=jwt.verify(token,JWT_SECRET)
+  req.user=decoded
+  return next()
 
 } catch (error) {
   return res.status(500).json({message:"Auth server Error ",error})
@@ -117,7 +116,7 @@ try {
   const apikey=req.headers['x-api-key']
   if(!apikey) return res.status(401).json({message:"API key is missing"})
   req.apikey=apikey;
-  next()
+  return next()
 } catch (error) {
   console.log("Error: ",error)
   return res.status(500).json({message:"API server Error"})
@@ -145,6 +144,7 @@ app.post('/registerorlogin',requireredis,async (req,res)=>{
       return res.status(200).json({message:`User: ${username} successfully created`,token})
     }
     // else{
+      
       const hashedpassword=await bcrypt.hash(password,10)
       await User.create({username,password:hashedpassword,email})
       return res.status(201).json({message:`User: ${username} successfully created successfully`,token})
@@ -208,7 +208,7 @@ app.get('/listkeys',authmiddleware,requireredis,async (req,res)=>{
 app.post('/rotate/:id',authmiddleware,requireredis,async (req,res)=>{
   const id=req.params.id;
   if(!id) return res.status(400).json({message:"No ID"});
-  
+
 })
 
 
