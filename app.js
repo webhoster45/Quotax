@@ -155,6 +155,10 @@ app.post('/registerorlogin',requireredis,async (req,res)=>{
 })
 
 
+
+//--------------------------------------TEST NOW------------------------------------------------
+
+
 app.post('/upgradeplan',authmiddleware,requireredis,async (req,res)=>{
     try {
     const {plan,verified}=req.body;
@@ -191,6 +195,20 @@ app.post('/generatekey',authmiddleware,requireredis,async(req,res)=>{
   } catch (error) {
     return res.status(500).json({message:"Internal Server Error",error})
   }
+})
+
+app.get('/listkeys',authmiddleware,requireredis,async (req,res)=>{
+   const existinguser=await User.findOne({username:req.user});
+   if(!existinguser) return res.status(400).json({message:"User doesn't exist"});
+   const userapis=await Api.find({userid:existinguser._id});
+   res.status(200).json({message:"User APIs: ",userapis:userapis||[]})
+})
+
+
+app.post('/rotate/:id',authmiddleware,requireredis,async (req,res)=>{
+  const id=req.params.id;
+  if(!id) return res.status(400).json({message:"No ID"});
+  
 })
 
 
