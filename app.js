@@ -94,6 +94,8 @@ function generateapikey(){
   return apikey
 }
 
+//Issue: Token returning undefined and jwt.verify is throwing error
+
 async function authmiddleware(req,res,next){
 try {
    const authheader=req.headers['authorization'];
@@ -105,6 +107,7 @@ try {
   const decoded=jwt.verify(token,JWT_SECRET)
   req.user=decoded
   return next()
+
 
 } catch (error) {
   return res.status(500).json({message:"Auth server Error ",error})
