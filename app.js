@@ -96,23 +96,29 @@ function generateapikey(){
 
 //Issue: Token returning undefined and jwt.verify is throwing error
 
-async function authmiddleware(req,res,next){
-try {
-   const authheader=req.headers['authorization'];
-       console.log(authheader)
-   if(!authheader) return res.status(403).json({message:"You don't have access"})
+async function authmiddleware(req, res, next) {
+  try {
+    const authheader = req.headers['authorization'];
+    if (!authheader) return res.status(403).json({ message: "Authorization header missing" });
 
-   const token=authheader.split(" ")[1]
-  if(!token) return res.status(403).json({message:"You don't have access"});
-  const decoded=jwt.verify(token,JWT_SECRET)
-  req.user=decoded
-  return next()
+    // Match 'bearer ' or 'Bearer ' case-insensitively and extract the token string
+    const match = authheader.match(/^bearer\s+(.+)$/i);
+    const token = match ? match[1] : authheader;
 
+    console.log("Extracted Token to Verify:", token);
 
-} catch (error) {
-  return res.status(500).json({message:"Auth server Error ",error})
+    if (!token) return res.status(403).json({ message: "Token missing from header" });
+
+    // Ensure we are passing the object payload property downstream
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded; 
+    return next();
+
+  } catch (error) {
+    return res.status(401).json({ message: "Auth server Error", error: error.message });
+  }
 }
-}
+
 
 async function apimiddleware(req,res,next){
 try {
@@ -133,6 +139,7 @@ console.log(generateapikey())
 
 app.post('/registerorlogin',requireredis,async (req,res)=>{
   try {
+    let token=null
     const {username,email,password}=req.body;
     if(!username||!email||!password) return res.status(400).json({message:"Missing Parameters"});
     const existinguser=await User.findOne({username});
@@ -142,12 +149,12 @@ app.post('/registerorlogin',requireredis,async (req,res)=>{
       if(exemail!=email) return res.status(403).json({message:"Invalid credentials"})
       if(!passwordmatch) return res.status(403).json({message:"Invalid credentials"})
       
-      const token=jwt.sign({username},JWT_SECRET)
-      console.log(token)
+      token=jwt.sign({username},JWT_SECRET)
+      console.log("Generated Token: ",token)
       return res.status(200).json({message:`User: ${username} successfully created`,token})
     }
     // else{
-      
+      token=jwt.sign({username},JWT_SECRET)
       const hashedpassword=await bcrypt.hash(password,10)
       await User.create({username,password:hashedpassword,email})
       return res.status(201).json({message:`User: ${username} successfully created successfully`,token})
@@ -165,14 +172,15 @@ app.post('/registerorlogin',requireredis,async (req,res)=>{
 app.post('/upgradeplan',authmiddleware,requireredis,async (req,res)=>{
     try {
     const {plan,verified}=req.body;
-    if(!plan) return res.status(400).json({message:"INvalid credentials"})
+    if(!plan) return res.status(400).json({message:"Invalid credentials"})
     if(!verified) return res.status(401).json({message:"You need to be verified"});
-    const username=req.user;
+    const username=req.user.username;
     const existinguser=await User.findOne({username});
     if(!existinguser) return res.status(400).json({message:"User doesn't exist"});
 
     existinguser.plan=plan;
-    await User.save()
+    await existinguser.save()
+    return res.status(200).json({message:`Plan updated to ${plan}`})
   } catch (error) {
     return res.status(500).json({message:"Internal Server Error",error})
   }
@@ -181,9 +189,9 @@ app.post('/upgradeplan',authmiddleware,requireredis,async (req,res)=>{
 
 app.post('/generatekey',authmiddleware,requireredis,async(req,res)=>{
   try {
-    const apikey=generateapikey();
+    let apikey=generateapikey();
     const existing=await Api.findOne({existing:apikey});
-    if(!existing) return res.status(400).json({message:"Duplicate: API key exists"});
+    if(existing) apikey=generateapikey()
     const user=await User.findOne({username});
     if(!user)  return res.status(400).json({message:"Duplicate: API key exists"});
     const userid=user._id;
@@ -192,8 +200,7 @@ app.post('/generatekey',authmiddleware,requireredis,async(req,res)=>{
 
   //do redis here
     await Api.create({userid,api:apikey,limit,plan:user.plan})
-
-
+    return res.status(200).json({message:"API key generated successfully"})
 
   } catch (error) {
     return res.status(500).json({message:"Internal Server Error",error})
