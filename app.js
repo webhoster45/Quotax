@@ -84,7 +84,7 @@ startapp();
 function generateapikey(){
   let apikey='';
   for(let i=0; ;i++){
-    if(apikey.length == 18) break;
+    if(apikey.length == 32) break;
     else{
       apikey+=numbers[Math.floor(Math.random()*numbers.length)]
       apikey+=largeletters[Math.floor(Math.random()*largeletters.length)]
@@ -191,8 +191,12 @@ app.post('/generatekey',authmiddleware,requireredis,async(req,res)=>{
   try {
     let apikey=generateapikey();
     const existing=await Api.findOne({existing:apikey});
-    if(existing) apikey=generateapikey()
+    const username=req.user.username
+    if(existing) apikey=generateapikey();
+    console.log('here ');
     const user=await User.findOne({username});
+
+    
     if(!user)  return res.status(400).json({message:"Duplicate: API key exists"});
     const userid=user._id;
     const limit=2;
