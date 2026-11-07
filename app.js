@@ -83,13 +83,10 @@ startapp();
 
 function generateapikey(){
   let apikey='';
-  for(let i=0; ;i++){
-    if(apikey.length == 32) break;
-    else{
+  for(let i=0;i<32 ;i++){
       apikey+=numbers[Math.floor(Math.random()*numbers.length)]
       apikey+=largeletters[Math.floor(Math.random()*largeletters.length)]
       apikey+=smallletters[Math.floor(Math.random()*smallletters.length)]
-    }
   }
   return apikey
 }
@@ -133,7 +130,6 @@ try {
 }
 
 
-console.log(generateapikey())
 
 
 
@@ -211,18 +207,46 @@ app.post('/generatekey',authmiddleware,requireredis,async(req,res)=>{
   }
 })
 
+//---------------------------------------------UNTESTED------------------------------------------
+
 app.get('/listkeys',authmiddleware,requireredis,async (req,res)=>{
-   const existinguser=await User.findOne({username:req.user});
+  
+    try {
+  const existinguser=await User.findOne({username:req.user.username});
    if(!existinguser) return res.status(400).json({message:"User doesn't exist"});
    const userapis=await Api.find({userid:existinguser._id});
-   res.status(200).json({message:"User APIs: ",userapis:userapis||[]})
+   return res.status(200).json({message:"User APIs: ",userapis:userapis||[]})
+
+  } catch (error) {
+    return res.status(500).json({message:"Internal Server Error",error})
+  }
+  
+
 })
 
 
 app.post('/rotate/:id',authmiddleware,requireredis,async (req,res)=>{
   const id=req.params.id;
   if(!id) return res.status(400).json({message:"No ID"});
+  
 
+  const existingkey=await Api.findOne({_id:id});
+  if(!existingkey) return res.status(400).json({message:"API key doesn't exist"});
+  const newkey=generateapikey();
+  existingkey.api=newkey;
+  await existingkey.save();
+  res.status(200).json({message:"API key rotated successfully"})
+})
+
+app.post('/revoke/:id',authmiddleware,requireredis,async (req,res)=>{
+  const id=req.params.id;
+  if(!id) return res.status(400).json({message:"No ID"});
+  
+
+  const existingkey=await Api.findOne({_id:id});
+  if(!existingkey) return res.status(400).json({message:"API key doesn't exist"});
+  await Api.deleteOne({_id:id})
+  res.status(200).json({message:"API key revoked successfully"})
 })
 
 
