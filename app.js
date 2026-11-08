@@ -12,9 +12,17 @@ const PORT=process.env.PORT || 5000;
 const Schema=mongoose.Schema;
 const bcrypt=require('bcrypt')
 
+const allowedevents=new Set(['api_count','total_requests_per_key']);
+
+const keys={
+  apicount:'API Count:',
+  totalrequests:'Total Requests Per Key:'
+}
+
 const smallletters=['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
 const largeletters=['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
 const numbers=[0,1,2,3,4,5,6,7,8,9,0];
+
 
 const plans=new Set(['basic','premium','pro'])
 
@@ -36,9 +44,19 @@ const apiSchema=new Schema({
 const User=mongoose.model('User',userschema);
 const Api=mongoose.model('Api',apiSchema)
 
+
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({extended:true}))
+
+function daykey(){
+  return newDate().toISOString().split(0,10)
+}
+
+function activitykey(){
+  return `activity:${daykey()}`
+}
 
 const redisopt={
 url:process.env.REDIS_CLI,
@@ -55,6 +73,34 @@ for (const client of [redispublisher, redissubscriber]){
 }
 
 
+async function claimevent(eventid,username){
+  if(!eventid) return null;
+  if(eventid.length>200){
+     const error=new Error("Idempotency-key is too long");
+     error.status=400;
+     console.log("Error:",error)
+     throw error;
+  }
+
+  const key=`event:${eventid}:${username}`;
+  const claimed=await redispublisher.set(key,'processing',{NX:true,EX:86400})
+  if(claimed !== 'OK'){
+    const error=new Error("Event already processed");
+    error.status=409;
+    throw error;
+  }
+  return key;
+}
+
+async function recordmetrics({eventtype,username,apikey,userid}){
+  const activity=`${username} ${eventtype} ${apikey} ${userid}`;
+  await redispublisher.incr(`activity:${daykey()}`,1);
+  if(eventtype==='api_count'){
+    await redispublisher.incr(`api_count:${apikey}`,1);
+  }else if(eventtype==='total_requests_per_key'){
+    await redispublisher.incr(`${keys.totalrequests}:${apikey}`,1);
+  }
+}
 
 function requireredis(req,res,next){
     if (redispublisher.isReady && redissubscriber.isReady) return next()
@@ -91,7 +137,7 @@ function generateapikey(){
   return apikey
 }
 
-//Issue: Token returning undefined and jwt.verify is throwing error
+
 
 async function authmiddleware(req, res, next) {
   try {
@@ -131,8 +177,6 @@ try {
 
 
 
-
-
 app.post('/registerorlogin',requireredis,async (req,res)=>{
   try {
     let token=null
@@ -162,7 +206,6 @@ app.post('/registerorlogin',requireredis,async (req,res)=>{
 
 
 
-//--------------------------------------TEST NOW------------------------------------------------
 
 
 app.post('/upgradeplan',authmiddleware,requireredis,async (req,res)=>{

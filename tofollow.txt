@@ -1,0 +1,28 @@
+What you'll build
+Done: 1. API key management
+- Generate API keys for users.
+- Associate keys with subscription plans.
+- Allow users to revoke and regenerate keys.
+- Authenticate incoming requests using API keys.
+
+
+
+2. Redis-powered rate limiting
+- Track request counts using Redis.
+- Set expiration times with TTL.
+- Implement a sliding-window algorithm.
+- Handle simultaneous requests without exceeding limits due to race conditions.
+3. Usage analytics
+- Track total requests per API key.
+- Record successful requests and rejected requests.
+- Track usage by endpoint.
+- Provide daily and monthly usage summaries.
+4. Quota enforcement
+- Reject requests when a user reaches their limit.
+- Return useful rate-limit headers.
+- Allow different limits for different plans.
+- Support temporary quota overrides.
+5. Administrative dashboard API
+- View users with the highest API consumption.
+- Identify users repeatedly hitting their limits.
+- Monitor overall API traffic.
