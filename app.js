@@ -38,7 +38,8 @@ const apiSchema=new Schema({
   userid:{type:String,required:true},
   api:{type:String,required:true},
   limit:{type:String,required:true},
-  plan:{type:String,required:true}
+  plan:{type:String,required:true},
+  expiry:{type:Number,required:true}
 },{timestamps:true})
 
 const User=mongoose.model('User',userschema);
@@ -96,11 +97,12 @@ async function recordmetrics({eventtype,username,apikey,userid}){
   const activity=`${username} ${eventtype} ${apikey} ${userid}`;
   await redispublisher.incr(`activity:${daykey()}`,1);
   if(eventtype==='api_count'){
-    await redispublisher.incr(`api_count:${apikey}`,1);
+    await redispublisher.incr(`${keys.apicount}:${apikey}`,1);
   }else if(eventtype==='total_requests_per_key'){
     await redispublisher.incr(`${keys.totalrequests}:${apikey}`,1);
   }
 }
+
 
 function requireredis(req,res,next){
     if (redispublisher.isReady && redissubscriber.isReady) return next()
@@ -166,7 +168,11 @@ async function authmiddleware(req, res, next) {
 async function apimiddleware(req,res,next){
 try {
   const apikey=req.headers['x-api-key']
-  if(!apikey) return res.status(401).json({message:"API key is missing"})
+  const existingindb=await Api.findOne({apikey});
+  const remainingms=await redispublisher.pTTL(`API:${apikey}`)
+  if(!apikey) return res.status(401).json({message:"API key is missing"});
+  if(!Api) return res.status(401).json({message:"API key doesn't exist"})
+  if(apikey==-2)return res.status(401).json({message:"Key Expired"})
   req.apikey=apikey;
   return next()
 } catch (error) {
@@ -239,10 +245,10 @@ app.post('/generatekey',authmiddleware,requireredis,async(req,res)=>{
     if(!user)  return res.status(400).json({message:"Duplicate: API key exists"});
     const userid=user._id;
     const limit=2;
-
-
+   
+    await redispublisher.set(`API:${apikey}`,86400,{PX:5000})
   //do redis here
-    await Api.create({userid,api:apikey,limit,plan:user.plan})
+    await Api.create({userid,api:apikey,limit,plan:user.plan,expiry:86400})
     return res.status(200).json({message:"API key generated successfully"})
 
   } catch (error) {
